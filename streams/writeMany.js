@@ -35,7 +35,7 @@ const fsPromises = fs.promises;
 // CPU Usage:  100% (One core)
 // Memory usage: 227Mbs
 
-  (async () => {
+/*  (async () => {
   console.time("writeMany");
   const fileHandle = await fsPromises.open("test.txt", "w");
  const stream = fileHandle.createWriteStream(); 
@@ -57,4 +57,45 @@ const fsPromises = fs.promises;
   //   stream.write(buffer)
   // }
   console.timeEnd("writeMany");
-})(); 
+})(); */
+
+(async () => {
+  console.time("writeMany");
+  const fileHandle = await fsPromises.open("test.txt", "w");
+  const stream = fileHandle.createWriteStream();
+
+  console.log(stream.writableHighWaterMark);
+
+  let i = 0;
+
+  const numberOfWrites = 1000000;
+
+  const writeMany = () => {
+    while (i < numberOfWrites) {
+      const buff = Buffer.from(`${i}`, "utf-8");
+      // this is our last write
+
+      if (i === numberOfWrites - 1) {
+        return stream.end();
+      }
+      // if stream.writes returns false, stop the loop
+      if (!stream.write(buff)) break;
+
+      i++;
+    }
+  };
+
+  writeMany();
+
+  // resume our loop once our stream's internal buffer is emptied
+
+  stream.on("drain", () => {
+    //console.log("Drained");
+    writeMany();
+  });
+
+  stream.on("finish", () => {
+    console.timeEnd("writeMany");
+    fileHandle.close();
+  });
+})();
