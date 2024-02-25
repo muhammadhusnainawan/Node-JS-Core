@@ -6,24 +6,42 @@
 const fs = require("node:fs/promises");
 
 (async () => {
+  console.time("readBig");
   const fileHandleRead = await fs.open("test.txt", "r");
   const fileHandleWrite = await fs.open("dest.txt", "w");
 
-  const readableStreams = fileHandleRead.createReadStream({
+  const readStream = fileHandleRead.createReadStream({
     highWaterMark: 64 * 1024,
   });
-  const writableStreams = fileHandleWrite.createWriteStream();
-  //let split = "";
-  readableStreams.on("data", (chunk) => {
-    // const numbers = chunk.toString().split("  ")
-
-    if (!writableStreams.write(chunk)) {
-      readableStreams.pause();
+  const writeStream = fileHandleWrite.createWriteStream();
+  let split = "";
+  readStream.on("data", (chunk) => {
+   const numbers = chunk.toString().split("  ");
+   // console.log(numbers);
+    if (numbers[0] !== numbers[1] + 1) {
+      if (split) {
+        numbers[0] = split.trim() + numbers[0].trim();
+      }
     }
-
-    //    console.log(numbers);
+    if (numbers[numbers.length - 2] + 1 !== numbers[numbers.length - 1]) {
+      split = numbers.pop();
+    }
+    console.log(numbers);
+    numbers.forEach((number) => {
+      let n = Number(number);
+      if (n % 2 === 0) {
+        if (!writeStream.write(" " + n + " ")) {
+          readStream.pause();
+        }
+      }
+    });
   });
-  writableStreams.on("drain", () => {
-    readableStreams.resume();
+  writeStream.on("drain", () => {
+    readStream.resume();
+  });
+
+  readStream.on("end", () => {
+    console.log("Done reading");
+    console.timeEnd("readBig");
   });
 })();
